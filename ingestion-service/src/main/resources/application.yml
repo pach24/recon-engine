@@ -4,6 +4,17 @@ server:
 spring:
   application:
     name: ingestion-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+
+app:
+  kafka:
+    topic:
+      raw-transactions: raw.transactions
 
 management:
   endpoints:
