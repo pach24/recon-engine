@@ -58,7 +58,7 @@ class LegacyOraclePollerIntegrationTest {
                 transactionId, "ACC-9", new BigDecimal("42.00"), "USD");
 
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(
-                "test-group-" + UUID.randomUUID(), "true", kafka.getBootstrapServers());
+                kafka.getBootstrapServers(), "test-group-" + UUID.randomUUID(), "true");
         consumerProps.put(org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         DefaultKafkaConsumerFactory<String, Transaction> consumerFactory = new DefaultKafkaConsumerFactory<>(
                 consumerProps,
