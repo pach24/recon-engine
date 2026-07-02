@@ -4,6 +4,22 @@ server:
 spring:
   application:
     name: alert-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: alert-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.recon.alert.model
+        spring.json.value.default.type: com.recon.alert.model.DiscrepancyEvent
+        spring.json.use.type.headers: false
+
+app:
+  kafka:
+    topic:
+      discrepancies: reconciliation.discrepancies
 
 management:
   endpoints:

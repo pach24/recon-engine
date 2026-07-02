@@ -1,5 +1,7 @@
 package com.recon.reconciliation.matching;
 
+import com.recon.reconciliation.kafka.DiscrepancyProducer;
+import com.recon.reconciliation.model.DiscrepancyEvent;
 import com.recon.reconciliation.persistence.ReconciliationResult;
 import com.recon.reconciliation.persistence.ReconciliationResultRepository;
 import com.recon.reconciliation.persistence.ReconciliationStatus;
@@ -19,13 +21,16 @@ public class MatchingService {
 
     private final TransactionRepository transactionRepository;
     private final ReconciliationResultRepository reconciliationResultRepository;
+    private final DiscrepancyProducer discrepancyProducer;
     private final BigDecimal amountTolerance;
 
     public MatchingService(TransactionRepository transactionRepository,
                             ReconciliationResultRepository reconciliationResultRepository,
+                            DiscrepancyProducer discrepancyProducer,
                             @Value("${app.matching.amount-tolerance:0.01}") BigDecimal amountTolerance) {
         this.transactionRepository = transactionRepository;
         this.reconciliationResultRepository = reconciliationResultRepository;
+        this.discrepancyProducer = discrepancyProducer;
         this.amountTolerance = amountTolerance;
     }
 
@@ -62,6 +67,10 @@ public class MatchingService {
                     new ReconciliationResult(transactionId, status, sourcesSeen, discrepancyDetails, now));
         } else {
             result.update(status, sourcesSeen, discrepancyDetails, now);
+        }
+
+        if (status == ReconciliationStatus.DISCREPANCY) {
+            discrepancyProducer.publish(new DiscrepancyEvent(transactionId, sourcesSeen, discrepancyDetails, now));
         }
     }
 

@@ -30,11 +30,16 @@ spring:
         spring.json.trusted.packages: com.recon.reconciliation.model
         spring.json.value.default.type: com.recon.reconciliation.model.RawTransactionEvent
         spring.json.use.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
 
 app:
   kafka:
     topic:
       raw-transactions: raw.transactions
+      discrepancies: reconciliation.discrepancies
   matching:
     amount-tolerance: 0.01
 
