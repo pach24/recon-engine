@@ -35,6 +35,8 @@ app:
   kafka:
     topic:
       raw-transactions: raw.transactions
+  matching:
+    amount-tolerance: 0.01
 
 management:
   endpoints:
