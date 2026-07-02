@@ -83,7 +83,7 @@ flowchart LR
 
 ```bash
 # 1. Clone the repo
-git clone <repo-url>
+git clone https://github.com/pach24
 cd recon-engine
 
 # 2. Copy and review environment variables
