@@ -36,12 +36,12 @@ sequenceDiagram
     participant RPT as reporting-service
 
     SRC->>ING: Raw records (CSV / REST)
+    ING->>ORA: Poll unprocessed legacy_transactions rows
     ING->>ING: Normalise to canonical model
     ING->>K: Publish to topic: raw.transactions
 
     K->>REC: Consume raw.transactions
-    REC->>PG: Read/write new-system records
-    REC->>ORA: Read/write legacy-system records
+    REC->>PG: Read/write reconciliation results
     REC->>REC: Apply matching rules
 
     alt Records match
@@ -63,8 +63,8 @@ sequenceDiagram
 
 | Service | Port | Kafka Topics (in) | Kafka Topics (out) | Storage |
 |---|---|---|---|---|
-| ingestion-service | 8081 | — | `raw.transactions` | — |
-| reconciliation-engine | 8082 | `raw.transactions` | `reconciliation.matched`, `reconciliation.discrepancies` | PostgreSQL + Oracle |
+| ingestion-service | 8081 | — | `raw.transactions` | Oracle (reads legacy batch rows) |
+| reconciliation-engine | 8082 | `raw.transactions` | `reconciliation.matched`, `reconciliation.discrepancies` | PostgreSQL |
 | alert-service | 8083 | `reconciliation.discrepancies` | — | — |
 | reporting-service | 8084 | `reconciliation.matched`, `reconciliation.discrepancies` | — | PostgreSQL (read) |
 
@@ -84,9 +84,9 @@ sequenceDiagram
 
 ### 2. Two database engines (PostgreSQL + Oracle)
 
-**Decision:** `reconciliation-engine` writes matched results to PostgreSQL 16 and reads legacy source data from Oracle Free 23c.
+**Decision:** `reconciliation-engine` writes matched results to PostgreSQL 16. `ingestion-service` reads legacy source data from Oracle Free 23c via a scheduled `LegacyOraclePoller` and republishes it onto `raw.transactions` (tagged `sourceSystem=LEGACY_ORACLE`), so it flows through the same matching pipeline as JSON-submitted transactions.
 
-**Why:** Real reconciliation problems arise precisely because two systems store the same data differently. Running both engines locally faithfully reproduces this constraint. It also demonstrates fluency with Oracle — the dominant RDBMS in banking and insurance — without requiring a licence or paid image (`gvenzl/oracle-free` is free for development).
+**Why:** Real reconciliation problems arise precisely because two systems store the same data differently. Polling Oracle at the ingestion edge — rather than having reconciliation-engine talk to two databases — keeps "normalize once at the edge" intact and mirrors how legacy banking systems actually integrate: batch exports, not APIs. It also demonstrates fluency with Oracle — the dominant RDBMS in banking and insurance — without requiring a licence or paid image (`gvenzl/oracle-free` is free for development).
 
 **Trade-off:** Oracle Free 23c has a slower cold-start (~60 s) than PostgreSQL. Mitigated by `depends_on` healthchecks in docker-compose so services wait for Oracle to be ready.
 
@@ -132,17 +132,17 @@ graph TD
         KAF[(Kafka KRaft\n:9092)]
     end
 
+    ORA --> ING
     ING --> KAF
     KAF --> REC
     KAF --> ALT
     KAF --> RPT
     REC --> PG
-    REC --> ORA
 
     ING -.depends_on.-> KAF
+    ING -.depends_on.-> ORA
     REC -.depends_on.-> KAF
     REC -.depends_on.-> PG
-    REC -.depends_on.-> ORA
     ALT -.depends_on.-> KAF
     RPT -.depends_on.-> KAF
 ```

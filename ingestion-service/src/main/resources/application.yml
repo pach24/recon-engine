@@ -10,11 +10,24 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:oracle:thin:@//localhost:1521/FREEPDB1}
+    username: ${SPRING_DATASOURCE_USERNAME:recon_oracle}
+    password: ${SPRING_DATASOURCE_PASSWORD:changeme}
+    driver-class-name: oracle.jdbc.OracleDriver
+  sql:
+    init:
+      platform: oracle
+      mode: always
+      continue-on-error: true
 
 app:
   kafka:
     topic:
       raw-transactions: raw.transactions
+  legacy-oracle:
+    source-system: LEGACY_ORACLE
+    poll-interval-ms: 10000
 
 management:
   endpoints:
