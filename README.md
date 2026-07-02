@@ -19,10 +19,12 @@ flowchart LR
     subgraph Sources
         CSV[CSV Files]
         API[External APIs]
+        ORA[(Oracle 23c\nlegacy batch export)]
     end
 
     subgraph ingestion-service
         ING[Normalise & publish]
+        POLL[Legacy poller]
     end
 
     KAFKA[(Kafka\nKRaft)]
@@ -31,10 +33,7 @@ flowchart LR
         REC[Match records\nApply rules]
     end
 
-    subgraph Persistence
-        PG[(PostgreSQL 16\nnew system)]
-        ORA[(Oracle 23c\nlegacy system)]
-    end
+    PG[(PostgreSQL 16\nreconciliation store)]
 
     subgraph Consumers
         ALERT[alert-service\nNotifications]
@@ -43,10 +42,11 @@ flowchart LR
 
     CSV --> ING
     API --> ING
+    ORA --> POLL
+    POLL --> KAFKA
     ING --> KAFKA
     KAFKA --> REC
     REC --> PG
-    REC --> ORA
     REC --> KAFKA
     KAFKA --> ALERT
     KAFKA --> REPORT
@@ -63,7 +63,7 @@ flowchart LR
 | Build | Maven multi-module | Centralised version management; familiar in banking/legacy orgs |
 | Messaging | Apache Kafka (KRaft) | High-throughput event streaming; KRaft removes Zookeeper complexity |
 | DB — new system | PostgreSQL 16 | Reliable, open-source RDBMS with strong JSON support |
-| DB — legacy system | Oracle Free 23c | Mirrors real-world enterprise environments; demonstrates dual-DB fluency |
+| DB — legacy system | Oracle Free 23c | A `LegacyOraclePoller` in ingestion-service reads unprocessed rows from `legacy_transactions` and republishes them as `sourceSystem=LEGACY_ORACLE` transactions, feeding the same reconciliation pipeline |
 | Containers | Docker (multi-stage builds) | Minimal production images; reproducible environments |
 | Orchestration | Docker Compose | Single-command local setup |
 | Integration tests | Testcontainers | Tests run against real database engines, not mocks |
@@ -186,6 +186,6 @@ Each service ships as a container image and maps cleanly to an OpenShift `Deploy
 See [`docs/architecture.md`](docs/architecture.md) for the full rationale. Quick summary:
 
 - **Kafka over RabbitMQ** — event log retention lets the reconciliation engine replay history when rules change; RabbitMQ deletes messages on ACK.
-- **Two databases** — PostgreSQL represents the new platform; Oracle Free 23c mirrors the legacy systems that dominate the banking sector. Dual-DB fluency is a real differentiator.
+- **Two databases** — PostgreSQL is the reconciliation store; Oracle Free 23c is a real second source, not just provisioned infrastructure. ingestion-service's `LegacyOraclePoller` reads legacy transactions out of Oracle and feeds them into the same matching pipeline as the JSON API, mirroring how banking legacy systems export via batch tables rather than APIs.
 - **Microservices over monolith** — each service can be scaled, deployed, and failed independently; reconciliation workloads spike at month-end while alerting is constant.
 - **Maven multi-module** — single `mvn verify` builds and tests the entire platform; version conflicts are caught at compile time, not at runtime.
