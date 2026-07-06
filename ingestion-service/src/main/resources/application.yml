@@ -28,6 +28,8 @@ app:
   legacy-oracle:
     source-system: LEGACY_ORACLE
     poll-interval-ms: 10000
+  csv:
+    default-source-system: CSV_IMPORT
 
 management:
   endpoints:

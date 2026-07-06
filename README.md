@@ -134,6 +134,8 @@ recon-engine/
 
 | Service | Port | Endpoint | Description |
 |---|---|---|---|
+| ingestion-service | 8081 | `POST /transactions` | Ingest a single transaction (JSON), publishes to `raw.transactions` |
+| ingestion-service | 8081 | `POST /transactions/csv` | Bulk-ingest a CSV export (multipart `file`); valid rows publish to `raw.transactions`, malformed rows are reported per-row |
 | ingestion-service | 8081 | `GET /health` | Custom health response |
 | ingestion-service | 8081 | `GET /actuator/health` | Spring Actuator health |
 | reconciliation-engine | 8082 | `GET /health` | Custom health response |
@@ -142,6 +144,29 @@ recon-engine/
 | alert-service | 8083 | `GET /actuator/health` | Spring Actuator health |
 | reporting-service | 8084 | `GET /health` | Custom health response |
 | reporting-service | 8084 | `GET /actuator/health` | Spring Actuator health |
+
+### Bulk CSV ingestion
+
+`POST /transactions/csv` accepts a multipart upload. The first line is a header; columns
+are matched by name (order-independent). Required: `transactionId`, `accountId`, `amount`,
+`currency`, `occurredAt` (ISO-8601 instant). `sourceSystem` is optional and defaults to
+`CSV_IMPORT` (`app.csv.default-source-system`).
+
+```bash
+curl -F "file=@transactions.csv" http://localhost:8081/transactions/csv
+```
+
+```csv
+transactionId,accountId,amount,currency,occurredAt
+TXN-1,ACC-1,100.50,USD,2026-07-06T10:00:00Z
+```
+
+Valid rows are published to `raw.transactions`; malformed rows are skipped and returned
+in the response so one bad line never fails the whole upload:
+
+```json
+{"received":2,"published":1,"errors":[{"line":3,"message":"amount must be positive: '-5.00'"}]}
+```
 
 ---
 
